@@ -23,6 +23,7 @@ interface Item {
 interface BatchViewProps {
   initialFiles: File[];
   onReset: () => void;
+  initialTarget?: EncodableFormat;
 }
 
 const TARGETS: { value: EncodableFormat; label: string }[] = [
@@ -54,9 +55,15 @@ const makeItem = (file: File): Item => {
   };
 };
 
-export const BatchView = ({ initialFiles, onReset }: BatchViewProps) => {
+export const BatchView = ({
+  initialFiles,
+  onReset,
+  initialTarget,
+}: BatchViewProps) => {
   const [items, setItems] = useState<Item[]>(() => initialFiles.map(makeItem));
-  const [target, setTarget] = useState<EncodableFormat>("webp");
+  const [target, setTarget] = useState<EncodableFormat>(
+    initialTarget ?? "webp",
+  );
   const [quality, setQuality] = useState(75);
   const [zipping, setZipping] = useState(false);
 
@@ -134,16 +141,19 @@ export const BatchView = ({ initialFiles, onReset }: BatchViewProps) => {
   }, [items]);
 
   const downloadAll = async () => {
-    const done = items.filter((i) => i.status === "done" && i.output);
-    if (done.length === 0) return;
+    const entries: { name: string; blob: Blob }[] = [];
+    for (const i of items) {
+      if (i.status === "done" && i.output) {
+        entries.push({
+          name: downloadName(i.file, i.output.format),
+          blob: i.output.blob,
+        });
+      }
+    }
+    if (entries.length === 0) return;
     setZipping(true);
     try {
-      const blob = await buildZip(
-        done.map((i) => ({
-          name: downloadName(i.file, i.output!.format),
-          blob: i.output!.blob,
-        })),
-      );
+      const blob = await buildZip(entries);
       triggerDownload(blob, `lessly-${Date.now()}.zip`);
     } finally {
       setZipping(false);
@@ -216,10 +226,11 @@ export const BatchView = ({ initialFiles, onReset }: BatchViewProps) => {
 
       <ul class="queue">
         {items.map((item) => {
+          const output = item.output;
           const originalSize = item.file.size;
-          const newSize = item.output?.blob.size ?? 0;
+          const newSize = output?.blob.size ?? 0;
           const savings =
-            item.output && originalSize > 0
+            output && originalSize > 0
               ? ((originalSize - newSize) / originalSize) * 100
               : 0;
 
@@ -230,12 +241,12 @@ export const BatchView = ({ initialFiles, onReset }: BatchViewProps) => {
                 <div class="queue-item__meta">
                   {formatBytes(originalSize)}
                   {item.inputFormat && ` · ${item.inputFormat.toUpperCase()}`}
-                  {item.status === "done" && item.output && (
+                  {item.status === "done" && output && (
                     <>
                       {" → "}
                       {formatBytes(newSize)}
                       {" · "}
-                      {item.output.format.toUpperCase()}
+                      {output.format.toUpperCase()}
                       <span
                         class={`queue-item__savings ${savings < 0 ? "queue-item__savings--negative" : ""}`}
                       >
@@ -260,13 +271,13 @@ export const BatchView = ({ initialFiles, onReset }: BatchViewProps) => {
                     Converting…
                   </span>
                 )}
-                {item.status === "done" && item.output && (
+                {item.status === "done" && output && (
                   <button
                     class="btn btn--small"
                     onClick={() =>
                       triggerDownload(
-                        item.output!.blob,
-                        downloadName(item.file, item.output!.format),
+                        output.blob,
+                        downloadName(item.file, output.format),
                       )
                     }
                   >

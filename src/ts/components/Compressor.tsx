@@ -13,6 +13,7 @@ import { formatBytes } from "../lib/format";
 interface CompressorProps {
   file: File;
   onReset: () => void;
+  initialTarget?: EncodableFormat;
 }
 
 const ALL_TARGETS: { value: TargetFormat; label: string }[] = [
@@ -30,8 +31,12 @@ const downloadName = (original: File, format: EncodableFormat): string => {
   return `${base}.${ext}`;
 };
 
-export const Compressor = ({ file, onReset }: CompressorProps) => {
-  const [target, setTarget] = useState<TargetFormat>("auto");
+export const Compressor = ({
+  file,
+  onReset,
+  initialTarget,
+}: CompressorProps) => {
+  const [target, setTarget] = useState<TargetFormat>(initialTarget ?? "auto");
   const [quality, setQuality] = useState(75);
   const [output, setOutput] = useState<{
     blob: Blob;
