@@ -1,0 +1,23 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "AVIF",
+    "EXIF",
+    "HEIC",
+    "HEIF",
+    "Lessly",
+    "Tauri",
+    "WebCodecs",
+    "gifsicle",
+    "interruptible",
+    "jsquash",
+    "kbps",
+    "libheif",
+    "mediabunny",
+    "muxer",
+    "oxipng",
+    "preact",
+    "vitest"
+  ]
+}
