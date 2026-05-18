@@ -1,57 +1,57 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://allless.github.io/lessly/</loc>
+    <loc>https://allless.github.io/image-compressor/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://allless.github.io/lessly/heic-to-jpg/</loc>
+    <loc>https://allless.github.io/image-compressor/heic-to-jpg/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://allless.github.io/lessly/heic-to-png/</loc>
+    <loc>https://allless.github.io/image-compressor/heic-to-png/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://allless.github.io/lessly/heic-to-webp/</loc>
+    <loc>https://allless.github.io/image-compressor/heic-to-webp/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://allless.github.io/lessly/webp-to-jpg/</loc>
+    <loc>https://allless.github.io/image-compressor/webp-to-jpg/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://allless.github.io/lessly/webp-to-png/</loc>
+    <loc>https://allless.github.io/image-compressor/webp-to-png/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://allless.github.io/lessly/png-to-jpg/</loc>
+    <loc>https://allless.github.io/image-compressor/png-to-jpg/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://allless.github.io/lessly/png-to-webp/</loc>
+    <loc>https://allless.github.io/image-compressor/png-to-webp/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://allless.github.io/lessly/jpg-to-png/</loc>
+    <loc>https://allless.github.io/image-compressor/jpg-to-png/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://allless.github.io/lessly/jpg-to-webp/</loc>
+    <loc>https://allless.github.io/image-compressor/jpg-to-webp/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://allless.github.io/lessly/avif-to-jpg/</loc>
+    <loc>https://allless.github.io/image-compressor/avif-to-jpg/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>

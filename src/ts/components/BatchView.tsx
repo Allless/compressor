@@ -166,7 +166,7 @@ export const BatchView = ({
   return (
     <div class="converter">
       <header class="converter__header">
-        <h1>Lessly — Batch</h1>
+        <h1>Lessly · Compressor — Batch</h1>
         <button class="btn btn--small" onClick={onReset}>
           ← Back
         </button>

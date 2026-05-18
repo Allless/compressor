@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://allless.github.io/lessly/sitemap.xml
+Sitemap: https://allless.github.io/image-compressor/sitemap.xml

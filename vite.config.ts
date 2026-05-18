@@ -11,7 +11,7 @@ const routeInputs = Object.fromEntries(
 );
 
 export default defineConfig({
-  base: "/lessly/",
+  base: "/image-compressor/",
   root: "src",
   plugins: [preact()],
   appType: "mpa",

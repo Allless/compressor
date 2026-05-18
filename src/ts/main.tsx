@@ -18,7 +18,7 @@ const App = () => {
         <h1>
           {ROUTE
             ? `${ROUTE.fromLabel} to ${ROUTE.toLabel} Converter`
-            : "Lessly"}
+            : "Lessly · Compressor"}
         </h1>
         <p class="landing__tagline">
           {ROUTE
