@@ -4,7 +4,7 @@ The image-compression tool in the [Lessly](https://allless.github.io/) family of
 
 100% client-side. Compress JPEG, PNG, WebP, AVIF, HEIC, and GIF in your browser — no upload, no signup, no server.
 
-**Live**: https://allless.github.io/image-compressor/ (moving to `compressor.lessly.me` once the domain is set up)
+**Live**: https://allless.github.io/compressor/ (moving to `compressor.lessly.me` once the domain is set up)
 
 ## Stack
 

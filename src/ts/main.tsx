@@ -17,12 +17,12 @@ const App = () => {
       <div class="landing">
         <h1>
           {ROUTE
-            ? `${ROUTE.fromLabel} to ${ROUTE.toLabel} Converter`
+            ? `Free ${ROUTE.label} ${ROUTE.verb}`
             : "Lessly · Compressor"}
         </h1>
         <p class="landing__tagline">
           {ROUTE
-            ? `Drop ${ROUTE.fromLabel} files. We'll convert them to ${ROUTE.toLabel} right here in your browser — no upload.`
+            ? `Drop your ${ROUTE.label} files. Everything runs locally in your browser — no upload.`
             : "Compress images in your browser. No upload, fully private."}
         </p>
         <Dropzone onFiles={setFiles} />
@@ -32,22 +32,10 @@ const App = () => {
   }
 
   if (files.length === 1) {
-    return (
-      <Compressor
-        file={files[0]}
-        onReset={reset}
-        initialTarget={ROUTE?.to}
-      />
-    );
+    return <Compressor file={files[0]} onReset={reset} />;
   }
 
-  return (
-    <BatchView
-      initialFiles={files}
-      onReset={reset}
-      initialTarget={ROUTE?.to}
-    />
-  );
+  return <BatchView initialFiles={files} onReset={reset} />;
 };
 
 const root = document.getElementById("app");

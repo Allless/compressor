@@ -3,15 +3,17 @@ import { readdirSync } from "node:fs";
 import { resolve } from "path";
 import preact from "@preact/preset-vite";
 
-// Pick up auto-generated `<from>-to-<to>` SEO route directories.
+// Pick up auto-generated single-format SEO route directories (managed by `scripts/gen-routes.mjs`).
+// Anything under `src/` that isn't a known project dir is treated as a route.
+const NON_ROUTE_DIRS = new Set(["public", "ts"]);
 const routeInputs = Object.fromEntries(
   readdirSync(resolve(__dirname, "src"), { withFileTypes: true })
-    .filter((d) => d.isDirectory() && /^[a-z]+-to-[a-z]+$/.test(d.name))
+    .filter((d) => d.isDirectory() && !NON_ROUTE_DIRS.has(d.name))
     .map((d) => [d.name, resolve(__dirname, `src/${d.name}/index.html`)]),
 );
 
 export default defineConfig({
-  base: "/image-compressor/",
+  base: "/compressor/",
   root: "src",
   plugins: [preact()],
   appType: "mpa",

@@ -1,25 +1,27 @@
-import type { EncodableFormat } from "./compress";
+import type { DecodableFormat } from "./compress";
 
 export interface Route {
-  from: string;
-  to: EncodableFormat;
-  fromLabel: string;
-  toLabel: string;
+  slug: string;
+  format: DecodableFormat;
+  label: string;
+  verb: "Compressor" | "Converter" | "Optimizer";
 }
 
-const TO_FORMAT: Record<string, EncodableFormat> = {
+const SLUG_TO_FORMAT: Record<string, DecodableFormat> = {
+  png: "png",
   jpg: "jpeg",
   jpeg: "jpeg",
-  png: "png",
   webp: "webp",
   avif: "avif",
+  heic: "heic",
+  heif: "heif",
   gif: "gif",
 };
 
 const LABEL: Record<string, string> = {
+  png: "PNG",
   jpg: "JPG",
   jpeg: "JPG",
-  png: "PNG",
   webp: "WebP",
   avif: "AVIF",
   heic: "HEIC",
@@ -27,17 +29,29 @@ const LABEL: Record<string, string> = {
   gif: "GIF",
 };
 
-// Parse a path like "/lessly/heic-to-jpg/" → { from: "heic", to: "jpeg", ... }
+const VERB: Record<string, "Compressor" | "Converter" | "Optimizer"> = {
+  png: "Compressor",
+  jpg: "Compressor",
+  jpeg: "Compressor",
+  webp: "Compressor",
+  avif: "Compressor",
+  heic: "Converter",
+  heif: "Converter",
+  gif: "Optimizer",
+};
+
+// Parse a path like "/image-compressor/png/" → { slug, format, label, verb }.
+// Matches the trailing single-segment slug (lowercase letters only).
 export const parseRoute = (pathname: string): Route | null => {
-  const match = pathname.match(/\/([a-z]+)-to-([a-z]+)(?:\/|\.html)?$/);
+  const match = pathname.match(/\/([a-z]+)\/?$/);
   if (!match) return null;
-  const [, from, to] = match;
-  const target = TO_FORMAT[to];
-  if (!target) return null;
+  const slug = match[1];
+  const format = SLUG_TO_FORMAT[slug];
+  if (!format) return null;
   return {
-    from,
-    to: target,
-    fromLabel: LABEL[from] ?? from.toUpperCase(),
-    toLabel: LABEL[to] ?? to.toUpperCase(),
+    slug,
+    format,
+    label: LABEL[slug] ?? slug.toUpperCase(),
+    verb: VERB[slug] ?? "Compressor",
   };
 };
