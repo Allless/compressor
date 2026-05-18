@@ -4,19 +4,21 @@ const ACCEPTED =
   "image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif,image/gif,.heic,.heif";
 
 interface DropzoneProps {
-  onFile: (file: File) => void;
+  onFiles: (files: File[]) => void;
+  compact?: boolean;
 }
 
-export const Dropzone = ({ onFile }: DropzoneProps) => {
+export const Dropzone = ({ onFiles, compact }: DropzoneProps) => {
   const [dragging, setDragging] = useState(false);
 
-  const handleFile = (file: File | undefined | null) => {
-    if (file) onFile(file);
+  const handle = (list: FileList | null | undefined) => {
+    if (!list || list.length === 0) return;
+    onFiles(Array.from(list));
   };
 
   return (
     <div
-      class={`dropzone ${dragging ? "dropzone--active" : ""}`}
+      class={`dropzone ${compact ? "dropzone--compact" : ""} ${dragging ? "dropzone--active" : ""}`}
       onDragEnter={(e) => {
         e.preventDefault();
         setDragging(true);
@@ -29,17 +31,22 @@ export const Dropzone = ({ onFile }: DropzoneProps) => {
       onDrop={(e) => {
         e.preventDefault();
         setDragging(false);
-        handleFile(e.dataTransfer?.files[0]);
+        handle(e.dataTransfer?.files);
       }}
     >
       <input
         type="file"
         accept={ACCEPTED}
+        multiple
         class="dropzone__input"
-        onChange={(e) => handleFile(e.currentTarget.files?.[0])}
+        onChange={(e) => handle(e.currentTarget.files)}
       />
-      <p class="dropzone__title">Drop an image here</p>
-      <p class="dropzone__subtitle">or click to choose a file</p>
+      <p class="dropzone__title">
+        {compact ? "Add more images" : "Drop an image here"}
+      </p>
+      <p class="dropzone__subtitle">
+        {compact ? "or click to add" : "or click to choose — drop multiple to batch"}
+      </p>
     </div>
   );
 };

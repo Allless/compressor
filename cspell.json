@@ -1,23 +1,30 @@
 {
   "version": "0.2",
   "language": "en",
+  "caseSensitive": false,
   "words": [
+    "allless",
     "AVIF",
     "EXIF",
+    "favicon",
+    "gifsicle",
     "HEIC",
     "HEIF",
-    "Lessly",
-    "Tauri",
-    "WebCodecs",
-    "gifsicle",
     "interruptible",
     "jsquash",
     "kbps",
+    "Lessly",
     "libheif",
+    "libraw",
     "mediabunny",
     "muxer",
     "oxipng",
     "preact",
-    "vitest"
+    "rasterize",
+    "rasterizes",
+    "Tauri",
+    "utif",
+    "vitest",
+    "WebCodecs"
   ]
 }

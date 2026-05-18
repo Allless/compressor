@@ -3,7 +3,7 @@ import { resolve } from "path";
 import preact from "@preact/preset-vite";
 
 export default defineConfig({
-  base: "/lessly",
+  base: "/lessly/",
   root: "src",
   plugins: [preact()],
   appType: "mpa",

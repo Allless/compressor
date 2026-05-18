@@ -58,24 +58,35 @@ Working tracker for Lessly. README is the public-facing roadmap; this is the une
 - [ ] **GIF → WebP / MP4 conversion** (power-user toggle)
   Once mediabunny is in for video, optionally convert animated GIF to WebP or MP4 for 90%+ savings. Default stays gifsicle-in-place; this is a checkbox.
 
-## Format converter — sibling tool
+## Batch mode — side feature in the optimizer
 
-Same repo, second entry point (`convert.html` + `convert.tsx`). Shares `lib/compress.ts`. Hosted at `allless.github.io/lessly/convert/`. Spin out into a separate repo only when there's a concrete reason (different brand, divergent feature set, RAW pipeline outgrowing the optimizer).
+**Decision (after three-agent discussion + user direction)**: Lessly is one tool. The optimizer is the primary identity. Batch ("convert N files to format X") is a side feature on the same page, activated by the file count of the drop. No separate `/convert/` URL.
 
-### Minimal v1 — reuse existing engine, change the framing
+Behavior:
+- Drop **1 file** → optimizer (`Compressor`) — preview, quality, format ("Auto = keep" default). UX unchanged.
+- Drop **2+ files** → `BatchView` — queue UI with shared format + quality controls, per-file status, per-file download, "Download all (zip)".
 
-- [ ] **`convert.html` + `convert.tsx`** — new MPA entry. Update `vite.config.ts` rollup inputs.
-- [ ] **Converter-style UI**
-  - Output format selector at the top (primary control)
-  - Quality slider secondary
-  - Landing copy reframed: "Convert any image" instead of "compress"
-- [ ] **Landing nav** — toggle / link between optimizer and converter on the home page so users find both.
-- [ ] **Batch / multi-file dropzone**
-  Drop multiple files → queue → per-file status (pending / converting / done / error). Download individually or "Download all (zip)" via `client-zip` (MIT, tiny).
-- [ ] **Resize during convert** — width / height inputs with aspect lock.
-- [ ] **Strip / preserve EXIF toggle**
-  Default: preserve (converter use case usually wants metadata kept). Optimizer mode can default the other way.
-- [ ] **Per-file error display** — exotic codec failures must be informative, not silent.
+Implementation notes:
+- `Dropzone` now accepts `multiple`; subtitle hints "drop multiple to batch" but doesn't shout it.
+- `main.tsx` switches between `Compressor` and `BatchView` based on `files.length`.
+- `BatchView` processes sequentially (one WASM codec at a time to avoid memory pressure) and uses a `processingRef` + `itemsRef` pattern to avoid the useEffect race that previously caused `Converting…` to hang. The fix: don't re-trigger processing on every state change; mark "in-flight" via a ref and drain pending items in a loop.
+
+### Shipped
+
+- [x] **Unified entry point** — single `index.html`, single `main.tsx`. No `/convert.html` page.
+- [x] **Adaptive UX** — 0 / 1 / many file count drives view selection.
+- [x] **Multi-file dropzone** — same `Dropzone` component, accepts `multiple`.
+- [x] **Batch queue** — sequential processing, per-file status (pending / processing / done / error), per-file remove + download.
+- [x] **Download all as ZIP** — `client-zip` (MIT, ~5 KB gzipped, Streams API).
+- [x] **Per-file error display** — surfaces format-mismatch failures from `compress()` cleanly (e.g., "Cannot encode pixel data to GIF" when picking WebP output on a GIF input).
+- [x] **Race fix** — `useEffect` race that caused `Converting…` to hang on small images (state mutation re-triggered the effect, which cancelled the in-flight promise) replaced with ref-based processing loop.
+
+### Deferred to v1.1
+
+- [ ] **Resize during convert** — width / height inputs with aspect lock. Useful for both single (optimizer flow) and batch.
+- [ ] **Strip / preserve EXIF toggle** — non-trivial: jSquash encoders strip EXIF by default; preserving requires reading via something like `exifr` and re-embedding into the encoded output. For v1 EXIF is stripped silently.
+- [ ] **Inline preview in batch rows** — expand any queue item to show before/after thumbnails (Agent 1 suggestion — removes the "I need to tune quality but I have 20 files" dead-end).
+- [ ] **Format-specific SEO landing routes** — e.g., `/lessly/heic-to-jpg`, `/lessly/webp-to-png`. Deep-link into the unified tool with pre-set format. Captures converter-intent search traffic without a separate page.
 
 ### Format extensions — add over time
 
