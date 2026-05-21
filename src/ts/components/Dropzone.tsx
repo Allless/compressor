@@ -1,7 +1,7 @@
 import { useState } from "preact/hooks";
 
 const ACCEPTED =
-  "image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif,image/gif,.heic,.heif";
+  "image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif,image/gif,video/mp4,video/quicktime,video/webm,video/x-matroska,.heic,.heif,.mp4,.mov,.m4v,.webm,.mkv";
 
 interface DropzoneProps {
   onFiles: (files: File[]) => void;

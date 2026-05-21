@@ -111,39 +111,41 @@ Decision recap (from brainstorm): **mediabunny + WebCodecs, no ffmpeg.wasm**. Re
 - WebCodecs taps the device's hardware codec block, giving ~30–100× speedup with no memory wall.
 - mediabunny is MPL-2.0, TypeScript-first, tree-shakable, and built by the author of `mp4-muxer`/`webm-muxer`.
 
-### Scaffolding
+### Shipped
 
-- [ ] **Second entry point** — `video.html` + `src/ts/video.tsx`, wired into `vite.config.ts` rollup inputs.
-- [ ] **Landing nav** — split landing into "Images" / "Video" cards, or a tab toggle.
-- [ ] **Shared layout** — extract dropzone + caption styles to be re-used between image and video flows.
+- [x] **Unified entry point** — single `index.html` / `main.tsx`. `routeFiles()` (pure, tested) handles drop decisions: single → `Compressor`/`LazyVideoCompressor`, multi-image → `BatchView`, mixed/multi-video → filter with a banner notice. Image users never pay the mediabunny download.
+- [x] **`mediabunny` dep** (v1.45.2). AAC via mediabunny's bundled codec; audio extensions deferred until a real input demands them.
+- [x] **Capability probe** — `canEncodeVideo("avc")` runs after lazy chunk loads. "Your browser can't encode H.264" surfaces before any work starts.
+- [x] **Decode → encode pipeline** — `Conversion` API, MP4/MOV/WebM/MKV in, MP4 H.264 out. WebM (VP9) / HEVC outputs not yet wired.
+- [x] **Resolution control (dual mode)** — Preset tab (Original / 1440p / 1080p / 720p / 480p, presets ≤ source resolution disable themselves) **or** Custom tab (numeric input, 144 – 4320 px). Aspect preserved via mediabunny's single-dimension API; `targetHeight()` enforces never-upscale; an inline hint surfaces when a custom value would exceed source height.
+- [x] **Quality control (dual mode)** — Preset tab (Low / Medium / High, resolution-aware bitrate curve) **or** Custom tab (kbps slider, 100 kbps – 20 Mbps, live value readout). Mode switches inline; never both at once.
+- [x] **Mode-switch value sync** — Flipping a control from Preset → Custom pre-fills the custom field with the equivalent of the current preset (e.g. preset=720p → custom field starts at 720; preset=Medium at 1080p → bitrate slider starts at the curve's 5000 kbps). No surprising jumps.
+- [x] **Source + output info** — Source caption shows native resolution and duration. Pre-encode caption shows predicted output dimensions, bitrate, and size estimate (`estimateBytes()` from duration × bitrate × 1.02 container overhead). After encode lands, swaps to actual size + savings %.
+- [x] **Progress bar** — `conv.onProgress` (0–1 fraction) shown as percentage. Frame X/Y + ETA would be a nicer step.
+- [x] **Cancel button** — `handle.cancel()` calls `conv.cancel()` and aborts the awaited result.
+- [x] **Architecture: testable orchestration** — All decision logic moved into pure modules:
+  - `lib/route-files.ts` — drop-routing decisions
+  - `lib/video/bitrate.ts` — preset → bitrate curve
+  - `lib/video/dimensions.ts` — `targetHeight`, `computeOutputDimensions` (aspect + even-width)
+  - `lib/video/estimate.ts` — output size predictor
+  - `lib/video/errors.ts` — `parseEncodeError(discardedTracks)`
+  - `lib/video/encode-machine.ts` — pure `reduce(state, event) => { state, effects }` for the probe/encode lifecycle
+  - `lib/video/probe.ts`, `encode.ts` — the only effectful boundaries; lazy-import mediabunny
+  - `hooks/use-encode.ts` — thin shell over `encode-machine`; no decision logic
+  - **79 unit tests, no DOM dependency**, no mediabunny mocks needed.
 
-### Pipeline
+### Pipeline — remaining
 
-- [ ] **Add `mediabunny` dep** and its audio codec extensions (`@mediabunny/aac-encoder`, `@mediabunny/mp3-encoder`, etc.) for formats WebCodecs doesn't cover everywhere.
-- [ ] **Capability probe on landing**
-  Call `VideoEncoder.isConfigSupported({ codec: "avc1.42E01F", hardwareAcceleration: "prefer-hardware" })` and friends. If H.264 encode unavailable, show a clear "your browser can't do video" message instead of letting the user upload.
-- [ ] **Decode → encode pipeline** with mediabunny.
-  Input matrix: MP4 / MOV / WebM / MKV.
-  Output: MP4 (H.264) default; WebM (VP9) and MP4 (HEVC) as options.
-- [ ] **Quality control**
-  Bitrate slider (kbps) and/or CRF-style quality preset (low/medium/high/very-high). Bitrate is what WebCodecs actually accepts.
-- [ ] **Resize / scale**
-  720p / 1080p / "original" picker. Most users want "make my 4K phone video small enough to share."
-- [ ] **Audio**
-  Keep-as-is by default. Optional re-encode to AAC at chosen bitrate.
+- [ ] **Audio passthrough toggle** — currently always re-encodes to AAC 128 kbps. Add a "keep original audio" option for the common case where source is already AAC.
+- [ ] **Additional outputs** — WebM (VP9) and MP4 (HEVC). HEVC encode is patchy on Firefox; gate the option.
+- [ ] **Audio codec extensions** — pull in `@mediabunny/aac-encoder` / `@mediabunny/mp3-encoder` only if a real input demands a codec mediabunny can't decode natively.
 
-### UX considerations specific to video
+### UX considerations specific to video — remaining
 
-- [ ] **Progress bar**
-  Videos take seconds to minutes. Show frame X / Y and ETA.
-- [ ] **Cancel button**
-  Long-running, must be interruptible.
-- [ ] **Pre-flight size estimate**
-  After decode metadata is known (codec, resolution, duration), show an estimated output size for the selected settings. Manage expectations.
-- [ ] **Preview the first ~5 seconds**
-  Decode and re-encode just the head before committing to the full file. Helps the user pick quality without waiting through a 10-min encode.
-- [ ] **File size warnings**
-  Soft warning over ~500 MB ("this may take a few minutes"), hard warning over ~1.5 GB ("your browser may run out of memory").
+- [ ] **Better progress detail** — show frame X / Y and ETA instead of just a percentage.
+- [ ] **Preview the first ~5 seconds** — decode and re-encode just the head before committing to the full file. Helps the user pick quality without waiting through a 10-min encode.
+- [ ] **File size warnings** — soft warning over ~500 MB ("this may take a few minutes"), hard warning over ~1.5 GB ("your browser may run out of memory").
+- [ ] **Debounce custom-bitrate slider** — currently every slider tick restarts the encode (the machine cancels + restarts on `settings-changed`). Fine while previewing on small files; on long videos add a debounce or an explicit "Apply" affordance.
 
 ### Known gaps to be honest about
 

@@ -36,6 +36,7 @@
     "client-zip": "^2.5.0",
     "gifsicle-wasm-browser": "^1.5.19",
     "libheif-js": "^1.19.8",
+    "mediabunny": "^1.45.2",
     "preact": "^10.28.3"
   }
 }
