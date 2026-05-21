@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { allowedTargets, autoTarget, detectFormat } from "../compress";
+import {
+  allowedTargets,
+  autoTarget,
+  detectFormat,
+  targetWidth,
+} from "../compress";
 
 const fakeFile = (name: string, type: string): File =>
   new File([new Uint8Array(1)], name, { type });
@@ -55,5 +60,33 @@ describe("autoTarget", () => {
 
   it("keeps gif as gif", () => {
     expect(autoTarget("gif")).toBe("gif");
+  });
+});
+
+describe("targetWidth", () => {
+  it("returns undefined when no max is set", () => {
+    expect(targetWidth(3840, null)).toBeUndefined();
+    expect(targetWidth(3840, undefined)).toBeUndefined();
+  });
+
+  it("returns undefined when max would upscale", () => {
+    expect(targetWidth(800, 1920)).toBeUndefined();
+    expect(targetWidth(800, 800)).toBeUndefined();
+  });
+
+  it("returns the max when it would shrink", () => {
+    expect(targetWidth(3840, 1920)).toBe(1920);
+    expect(targetWidth(2000, 1280)).toBe(1280);
+  });
+
+  it("rounds non-integer max", () => {
+    expect(targetWidth(3840, 1919.6)).toBe(1920);
+  });
+
+  it("rejects invalid maxes", () => {
+    expect(targetWidth(3840, 0)).toBeUndefined();
+    expect(targetWidth(3840, -100)).toBeUndefined();
+    expect(targetWidth(3840, Number.NaN)).toBeUndefined();
+    expect(targetWidth(3840, Number.POSITIVE_INFINITY)).toBeUndefined();
   });
 });

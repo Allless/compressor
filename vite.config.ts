@@ -38,6 +38,7 @@ export default defineConfig({
       "@jsquash/png",
       "@jsquash/webp",
       "@jsquash/avif",
+      "@jsquash/oxipng",
       "libheif-js/wasm-bundle",
       "gifsicle-wasm-browser",
     ],

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { formatBytes } from "../lib/format";
+import { useDebounced } from "../hooks/use-debounced";
 import { useEncode } from "../hooks/use-encode";
+import { ModeTabs, type Mode } from "./ModeTabs";
 import {
   bitrateForPreset,
   clampVideoBps,
@@ -36,8 +38,6 @@ const QUALITY_PRESETS: ReadonlyArray<{
   { value: "high", label: "High" },
 ];
 
-type Mode = "preset" | "custom";
-
 const MIN_KBPS = Math.round(MIN_VIDEO_BPS / 1000);
 
 const MIN_CUSTOM_HEIGHT = 144;
@@ -55,18 +55,29 @@ export const VideoCompressor = ({ file, onReset }: Props) => {
   const [preset, setPreset] = useState<VideoQualityPreset>("medium");
   const [customKbps, setCustomKbps] = useState<number>(3000);
 
+  const [audioPassthrough, setAudioPassthrough] = useState<boolean>(false);
+
+  // Debounce only the values that flow into `settings` (and therefore re-trigger
+  // the encode). Display elements keep reading the live values so the slider
+  // and pre-encode readout stay responsive while the user drags.
+  const settledHeight = useDebounced(customHeight, 250);
+  const settledKbps = useDebounced(customKbps, 250);
+
   const maxHeight =
     heightMode === "preset" ? presetHeight : clampHeight(customHeight);
+  const settledMaxHeight =
+    heightMode === "preset" ? presetHeight : clampHeight(settledHeight);
 
   const settings: VideoSettings = useMemo(
     () => ({
-      maxHeight,
+      maxHeight: settledMaxHeight,
       quality:
         qualityMode === "preset"
           ? { kind: "preset", preset }
-          : { kind: "bitrate", videoBps: clampVideoBps(customKbps * 1000) },
+          : { kind: "bitrate", videoBps: clampVideoBps(settledKbps * 1000) },
+      audioPassthrough,
     }),
-    [maxHeight, qualityMode, preset, customKbps],
+    [settledMaxHeight, qualityMode, preset, settledKbps, audioPassthrough],
   );
 
   const switchHeightMode = (next: Mode) => {
@@ -155,9 +166,30 @@ export const VideoCompressor = ({ file, onReset }: Props) => {
     ? ((originalSize - newSize) / originalSize) * 100
     : 0;
 
+  const encodingDone = enc.output !== null && !enc.busy;
+  const sizeTier: "warn" | "info" | null = encodingDone
+    ? null
+    : originalSize > 1_610_612_736
+      ? "warn"
+      : originalSize > 524_288_000
+        ? "info"
+        : null;
+
   return (
     <div class="compressor">
       <Header onReset={onReset} />
+
+      {sizeTier === "warn" ? (
+        <div class="notice notice--warn">
+          Very large file (~{formatBytes(originalSize)}). Your browser may run
+          out of memory; consider splitting or downsizing externally first.
+        </div>
+      ) : sizeTier === "info" ? (
+        <div class="notice">
+          Large file (~{formatBytes(originalSize)}). Encoding may take a few
+          minutes.
+        </div>
+      ) : null}
 
       <div class="compressor__grid">
         <figure class="compressor__pane">
@@ -329,6 +361,20 @@ export const VideoCompressor = ({ file, onReset }: Props) => {
           )}
         </div>
 
+        {enc.meta?.hasAudio && (
+          <label class="control control--checkbox">
+            <input
+              type="checkbox"
+              checked={audioPassthrough}
+              onChange={(e) =>
+                setAudioPassthrough(e.currentTarget.checked)
+              }
+              disabled={enc.busy}
+            />
+            <span class="control__label">Keep source audio</span>
+          </label>
+        )}
+
         {enc.busy ? (
           <button
             class="btn controls__download"
@@ -368,26 +414,3 @@ const formatDuration = (sec: number): string => {
   return `${m}:${s.toString().padStart(2, "0")}`;
 };
 
-interface ModeTabsProps {
-  value: Mode;
-  onChange: (next: Mode) => void;
-  disabled?: boolean;
-}
-
-const ModeTabs = ({ value, onChange, disabled }: ModeTabsProps) => (
-  <div class="control__tabs" role="tablist">
-    {(["preset", "custom"] as const).map((m) => (
-      <button
-        key={m}
-        type="button"
-        role="tab"
-        aria-selected={value === m}
-        class={`control__tab ${value === m ? "control__tab--active" : ""}`}
-        onClick={() => onChange(m)}
-        disabled={disabled}
-      >
-        {m === "preset" ? "Preset" : "Custom"}
-      </button>
-    ))}
-  </div>
-);

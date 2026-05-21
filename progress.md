@@ -4,52 +4,42 @@ Working tracker for **Compressor** — the image-compression tool in the `Lessly
 
 ## UI / UX — image flow
 
-- [ ] **Quality slider helper text**
-  Explain what quality does and why pushing it above the source's quality grows the file with no visible gain. One line under the slider.
+- [x] **Quality slider helper text** — one-liner under the slider explaining the over-source-quality trap.
 
-- [ ] **"Don't enlarge" toggle**
-  When the re-encoded output is larger than the input, return the original bytes instead. Useful default for batch flows so the user can't accidentally bloat files.
+- [~] **"Don't enlarge" — replaced with a prominent warning**
+  Originally framed as a toggle that silently returns original bytes when output is larger. Skipped because for format conversions (e.g. HEIC → JPEG) a slightly larger output is still the desired output. Instead: a red warning panel between preview and controls when output is >3% larger, telling the user to try a different target / quality or download the original. Same protection, no silent substitution.
 
-- [ ] **Clearer "file got bigger" state**
-  Currently shows `+X%` in red — subtle. Consider a banner / icon when output > input.
+- [x] **Clearer "file got bigger" state** — `.compressor__warning` panel + icon under the previews when savings < -3%.
 
-- [ ] **Compressing state**
-  The "Compressing…" placeholder replaces the image. Better: keep the previous output visible with a dimmer/spinner overlay so the user can see the comparison update smoothly.
+- [x] **Compressing state** — previous output stays visible behind a `.compressor__overlay` ("Compressing…") instead of being replaced by the placeholder. Only the very first encode (no output yet) shows the placeholder text.
 
 - [ ] **Before/after slider**
   Interactive split view (drag a vertical handle to compare). Better than side-by-side for spotting compression artifacts.
 
-- [ ] **Drop affordance off the drop zone**
-  Right now only the dropzone reacts to drag. A subtle full-page overlay on drag-enter would catch sloppy drops.
+- [x] **Drop affordance off the drop zone** — full-page `.drag-overlay` (translucent + blurred + dashed primary border, "Drop file to compress" centered) activates whenever a file is dragged anywhere on the landing view. Window-level `dragenter` / `dragover` / `dragleave` / `drop` listeners route the drop through the same `handleFiles` pipeline as the inner Dropzone. A `dragDepth` ref counts enter/leave events so the overlay doesn't flicker as the cursor crosses child elements. Overlay uses `pointer-events: none` so the underlying dropzone still handles direct drops (mild redundancy, no functional issue). Only active when `files.length === 0` — sloppy-drop semantics in the compressor/batch views are ambiguous (replace vs append), so we leave those alone.
 
 - [ ] **Mobile polish**
   Side-by-side panes already stack on narrow screens, but the controls row could use more breathing room. Test on real phone.
 
-- [ ] **Keyboard shortcut**
-  `Esc` or `←` to return to landing from the compressor view.
+- [x] **Keyboard shortcut** — `Esc` returns to landing from any compressor view (single image / batch / video).
 
-- [ ] **Paste support**
-  `Cmd+V` with an image in clipboard should trigger compression (screenshot workflow).
+- [x] **Paste support** — `Cmd+V` on the landing page extracts files from `clipboardData.items` and routes them through the same drop pipeline. Landing copy ends with "Or paste an image from the clipboard."
 
 ## Image features — bigger
 
-- [ ] **Batch / multi-file mode**
-  Drop a folder or multiple files → compress all → zip download or per-file. Likely needs a queue + worker.
+- [x] **Batch / multi-file mode** — shipped; see "Batch mode" section below for the full implementation notes (sequential queue, per-file status, ZIP download).
 
-- [ ] **Resize before encode**
-  Width/height inputs with aspect lock. Could use `@jsquash/resize`.
+- [x] **Resize before encode** — Width control mirrors the video Resolution pattern (Preset tab with Original / 2560 / 1920 / 1280 / 800 / 480 px, plus Custom numeric tab). Aspect preserved; `targetWidth(sourceWidth, max)` (pure, tested) returns `undefined` when the request would upscale, so we never grow images. Resize happens between decode and encode in `compress.ts` via a hidden `<canvas>` with `imageSmoothingQuality: "high"` — zero new bundle bytes. GIFs go through gifsicle's `--resize-fit-width=N` flag, which also never upscales. Single-image flow probes source dimensions via an `Image()` load so over-source presets disable themselves; batch flow skips that probe (per-row source dims would mean N decodes) — but resize is still safe because it no-ops when max ≥ source. Shared `ModeTabs` component and `useDebounced` hook now live in their own files so both image and video flows share them.
 
 - [ ] **Strip / preserve EXIF toggle**
   Default = strip for privacy. Show what's being stripped (GPS, camera model, etc.).
 
-- [ ] **PNG re-optimization via `@jsquash/oxipng`**
-  Better PNG savings without quality loss. Worth toggling on automatically for PNG → PNG.
+- [x] **PNG re-optimization via `@jsquash/oxipng`** — always engaged for PNG output, no toggle. After `@jsquash/png` produces the initial bytes, oxipng runs `optimise(buf, { level: 2 })` to try every filter strategy and recompress IDAT. Typical extra savings 10–25%, zero quality loss. Level 2 is the balanced default — levels 4–6 find a bit more but spend multiple seconds per image, which would make the slider feel sluggish. Both the encoder and the optimizer are lazy-imported so non-PNG flows pay nothing. Apache-2.0.
 
 - [ ] **JPEG XL support**
   `@jsquash/jxl`. Browser support is still patchy — gate via `canEncode` style check or just expose unconditionally and let the user download.
 
-- [ ] **Codec / encode info on output**
-  Show the chosen quality, dimensions, and (for AVIF) speed setting in the caption.
+- [~] **Codec / encode info on output** — declined. The caption already shows size and format; adding `q75` etc. is noise for the common case (user adjusted the slider one tick ago and remembers what they picked) and there's no separate "speed" control exposed yet to warrant the real estate.
 
 - [x] **HEIC / HEIF input** — `libheif-js/wasm-bundle`. Decode-only; no HEIC output. "Auto" target falls back to WebP. ⚠️ **License: LGPL-3.0** — fine for the open-source GH-Pages build (attribution required); revisit if Lessly ever becomes closed-source. The libheif chunk is ~500 KB gzipped, dynamically imported only when a HEIC is uploaded.
 
@@ -83,9 +73,9 @@ Implementation notes:
 
 ### Deferred to v1.1
 
-- [ ] **Resize during convert** — width / height inputs with aspect lock. Useful for both single (optimizer flow) and batch.
+- [x] **Resize during convert** — covered by the shared Width control above; available in both single and batch flows.
 - [ ] **Strip / preserve EXIF toggle** — non-trivial: jSquash encoders strip EXIF by default; preserving requires reading via something like `exifr` and re-embedding into the encoded output. For v1 EXIF is stripped silently.
-- [ ] **Inline preview in batch rows** — expand any queue item to show before/after thumbnails (Agent 1 suggestion — removes the "I need to tune quality but I have 20 files" dead-end).
+- [x] **Inline preview in batch rows** — chevron toggle on the left of any `done` row expands a 2-column thumbnail panel (Original + Compressed, with captions). Only one row at a time (accordion); `<PreviewPanel>` is a child component whose `URL.createObjectURL` calls are mount-scoped, so URLs are created lazily and revoked on collapse / row removal / re-process. Mobile stacks the two thumbnails vertically.
 - [x] **Format-specific SEO landing routes** — single-format pages, one per supported input: `/png`, `/jpg`, `/webp`, `/avif`, `/heic`, `/gif`. Each has a route-specific title / H1 / meta tags driven by `scripts/gen-routes.mjs` (with a per-format `verb` like "Compressor" / "Converter" / "Optimizer"). `main.tsx` reads `window.location.pathname` and uses the matched route for the landing heading and tagline. Run `pnpm run gen:routes` to regenerate after editing the `FORMATS` config — sitemap is regenerated by the same script. (Earlier `<from>-to-<to>` pair-routes were swapped out — they targeted conversion intent but pair-naming was inconsistent with the unified `compressor.lessly.me` tool concept and the future video-format routes like `/mp4`.)
 
 ### Format extensions — add over time
@@ -136,7 +126,7 @@ Decision recap (from brainstorm): **mediabunny + WebCodecs, no ffmpeg.wasm**. Re
 
 ### Pipeline — remaining
 
-- [ ] **Audio passthrough toggle** — currently always re-encodes to AAC 128 kbps. Add a "keep original audio" option for the common case where source is already AAC.
+- [x] **Audio passthrough toggle** — "Keep source audio" checkbox in the video controls (gated on `enc.meta.hasAudio` so silent videos don't see it). Default OFF to preserve the predictable "128 kbps AAC out" behavior. When ON, `encode.ts` passes `audio: {}` to mediabunny so the source audio track is copied verbatim when its codec is compatible with the output container (AAC in MP4), and re-encoded only when it must be. When OFF, we now also pass `forceTranscode: true` so the 128 kbps target is honored even if mediabunny would have otherwise copied. Estimate continues to use `audioBps` as a placeholder either way; rough but fine for the pre-encode "~5 MB" caption.
 - [ ] **Additional outputs** — WebM (VP9) and MP4 (HEVC). HEVC encode is patchy on Firefox; gate the option.
 - [ ] **Audio codec extensions** — pull in `@mediabunny/aac-encoder` / `@mediabunny/mp3-encoder` only if a real input demands a codec mediabunny can't decode natively.
 
@@ -144,8 +134,8 @@ Decision recap (from brainstorm): **mediabunny + WebCodecs, no ffmpeg.wasm**. Re
 
 - [ ] **Better progress detail** — show frame X / Y and ETA instead of just a percentage.
 - [ ] **Preview the first ~5 seconds** — decode and re-encode just the head before committing to the full file. Helps the user pick quality without waiting through a 10-min encode.
-- [ ] **File size warnings** — soft warning over ~500 MB ("this may take a few minutes"), hard warning over ~1.5 GB ("your browser may run out of memory").
-- [ ] **Debounce custom-bitrate slider** — currently every slider tick restarts the encode (the machine cancels + restarts on `settings-changed`). Fine while previewing on small files; on long videos add a debounce or an explicit "Apply" affordance.
+- [x] **File size warnings** — `.notice` banner above the preview at >500 MB (info tone) and `.notice notice--warn` at >1.5 GB. Hidden once a successful output is produced.
+- [x] **Debounce custom-bitrate and custom-height inputs** — a small `useDebounced(value, ms)` helper produces a 250 ms-settled derivative of `customKbps` / `customHeight`; only the settled values flow into `settings` (and therefore re-trigger `settings-changed` → encode restart). The live values still drive the slider thumb, the number input, and the pre-encode estimate readout, so the UI stays responsive while the encode side effect is throttled.
 
 ### Known gaps to be honest about
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { Dropzone } from "./Dropzone";
+import { ModeTabs, type Mode } from "./ModeTabs";
 import {
   compress,
   detectFormat,
@@ -7,6 +8,7 @@ import {
   type EncodableFormat,
 } from "../lib/compress";
 import { formatBytes } from "../lib/format";
+import { useDebounced } from "../hooks/use-debounced";
 import { buildZip, triggerDownload } from "../lib/zip";
 
 type Status = "pending" | "processing" | "done" | "error";
@@ -33,6 +35,21 @@ const TARGETS: { value: EncodableFormat; label: string }[] = [
   { value: "avif", label: "AVIF" },
   { value: "gif", label: "GIF" },
 ];
+
+const WIDTH_PRESETS: ReadonlyArray<{ value: number | null; label: string }> = [
+  { value: null, label: "Original" },
+  { value: 2560, label: "2560w" },
+  { value: 1920, label: "1920w" },
+  { value: 1280, label: "1280w" },
+  { value: 800, label: "800w" },
+  { value: 480, label: "480w" },
+];
+
+const MIN_CUSTOM_WIDTH = 16;
+const MAX_CUSTOM_WIDTH = 8192;
+
+const clampWidth = (w: number): number =>
+  Math.max(MIN_CUSTOM_WIDTH, Math.min(MAX_CUSTOM_WIDTH, Math.round(w || 0)));
 
 const downloadName = (original: File, format: EncodableFormat): string => {
   const base = original.name.replace(/\.[^.]+$/, "");
@@ -66,6 +83,22 @@ export const BatchView = ({
   );
   const [quality, setQuality] = useState(75);
   const [zipping, setZipping] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const [widthMode, setWidthMode] = useState<Mode>("preset");
+  const [presetWidth, setPresetWidth] = useState<number | null>(null);
+  const [customWidth, setCustomWidth] = useState<number>(1280);
+  const settledCustomWidth = useDebounced(customWidth, 250);
+  const maxWidth =
+    widthMode === "preset" ? presetWidth : clampWidth(settledCustomWidth);
+
+  const switchWidthMode = (next: Mode) => {
+    if (next === widthMode) return;
+    if (next === "custom" && presetWidth !== null) {
+      setCustomWidth(presetWidth);
+    }
+    setWidthMode(next);
+  };
 
   // Sequential processing using a ref to avoid useEffect race conditions.
   const processingRef = useRef(false);
@@ -91,7 +124,7 @@ export const BatchView = ({
         );
 
         try {
-          const output = await compress(next.file, target, quality);
+          const output = await compress(next.file, target, quality, maxWidth);
           setItems((prev) =>
             prev.map((i) => {
               if (i.id !== next.id) return i;
@@ -113,7 +146,7 @@ export const BatchView = ({
       }
       processingRef.current = false;
     })();
-  }, [items, target, quality]);
+  }, [items, target, quality, maxWidth]);
 
   const addFiles = (files: File[]) => {
     setItems((prev) => [...prev, ...files.map(makeItem)]);
@@ -173,6 +206,52 @@ export const BatchView = ({
       </header>
 
       <div class="controls controls--sticky">
+        <div class="control">
+          <div class="control__head">
+            <span class="control__label">Width</span>
+            <ModeTabs
+              value={widthMode}
+              onChange={switchWidthMode}
+              disabled={busy}
+            />
+          </div>
+          {widthMode === "preset" ? (
+            <select
+              class="control__select"
+              value={presetWidth === null ? "original" : String(presetWidth)}
+              onChange={(e) => {
+                const v = e.currentTarget.value;
+                setPresetWidth(v === "original" ? null : Number(v));
+              }}
+              disabled={busy}
+            >
+              {WIDTH_PRESETS.map((p) => (
+                <option
+                  key={p.label}
+                  value={p.value === null ? "original" : String(p.value)}
+                >
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="number"
+              class="control__select"
+              value={customWidth}
+              min={MIN_CUSTOM_WIDTH}
+              max={MAX_CUSTOM_WIDTH}
+              step={1}
+              onInput={(e) => {
+                const n = Number(e.currentTarget.value);
+                if (Number.isFinite(n)) setCustomWidth(n);
+              }}
+              disabled={busy}
+              aria-label="Max output width in pixels"
+            />
+          )}
+        </div>
+
         <label class="control">
           <span class="control__label">Output format</span>
           <select
@@ -234,70 +313,124 @@ export const BatchView = ({
               ? ((originalSize - newSize) / originalSize) * 100
               : 0;
 
+          const isExpanded = expandedId === item.id;
+          const canPreview = item.status === "done" && output !== undefined;
+
           return (
             <li key={item.id} class={`queue-item queue-item--${item.status}`}>
-              <div class="queue-item__main">
-                <div class="queue-item__name">{item.file.name}</div>
-                <div class="queue-item__meta">
-                  {formatBytes(originalSize)}
-                  {item.inputFormat && ` · ${item.inputFormat.toUpperCase()}`}
-                  {item.status === "done" && output && (
-                    <>
-                      {" → "}
-                      {formatBytes(newSize)}
-                      {" · "}
-                      {output.format.toUpperCase()}
-                      <span
-                        class={`queue-item__savings ${savings < 0 ? "queue-item__savings--negative" : ""}`}
-                      >
-                        {savings >= 0
-                          ? ` −${savings.toFixed(0)}%`
-                          : ` +${(-savings).toFixed(0)}%`}
-                      </span>
-                    </>
-                  )}
-                </div>
-                {item.status === "error" && item.error && (
-                  <div class="queue-item__error">{item.error}</div>
-                )}
-              </div>
-
-              <div class="queue-item__actions">
-                {item.status === "pending" && (
-                  <span class="queue-item__badge">Pending</span>
-                )}
-                {item.status === "processing" && (
-                  <span class="queue-item__badge queue-item__badge--processing">
-                    Converting…
-                  </span>
-                )}
-                {item.status === "done" && output && (
+              <div class="queue-item__head">
+                {canPreview ? (
                   <button
-                    class="btn btn--small"
+                    class="queue-item__toggle"
+                    aria-label={isExpanded ? "Hide preview" : "Show preview"}
+                    aria-expanded={isExpanded}
                     onClick={() =>
-                      triggerDownload(
-                        output.blob,
-                        downloadName(item.file, output.format),
+                      setExpandedId((prev) =>
+                        prev === item.id ? null : item.id,
                       )
                     }
                   >
-                    Download
+                    {isExpanded ? "▾" : "▸"}
                   </button>
+                ) : (
+                  <span class="queue-item__toggle queue-item__toggle--placeholder" />
                 )}
-                <button
-                  class="queue-item__remove"
-                  aria-label="Remove"
-                  onClick={() => removeItem(item.id)}
-                >
-                  ×
-                </button>
+                <div class="queue-item__main">
+                  <div class="queue-item__name">{item.file.name}</div>
+                  <div class="queue-item__meta">
+                    {formatBytes(originalSize)}
+                    {item.inputFormat && ` · ${item.inputFormat.toUpperCase()}`}
+                    {item.status === "done" && output && (
+                      <>
+                        {" → "}
+                        {formatBytes(newSize)}
+                        {" · "}
+                        {output.format.toUpperCase()}
+                        <span
+                          class={`queue-item__savings ${savings < 0 ? "queue-item__savings--negative" : ""}`}
+                        >
+                          {savings >= 0
+                            ? ` −${savings.toFixed(0)}%`
+                            : ` +${(-savings).toFixed(0)}%`}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  {item.status === "error" && item.error && (
+                    <div class="queue-item__error">{item.error}</div>
+                  )}
+                </div>
+
+                <div class="queue-item__actions">
+                  {item.status === "pending" && (
+                    <span class="queue-item__badge">Pending</span>
+                  )}
+                  {item.status === "processing" && (
+                    <span class="queue-item__badge queue-item__badge--processing">
+                      Converting…
+                    </span>
+                  )}
+                  {item.status === "done" && output && (
+                    <button
+                      class="btn btn--small"
+                      onClick={() =>
+                        triggerDownload(
+                          output.blob,
+                          downloadName(item.file, output.format),
+                        )
+                      }
+                    >
+                      Download
+                    </button>
+                  )}
+                  <button
+                    class="queue-item__remove"
+                    aria-label="Remove"
+                    onClick={() => removeItem(item.id)}
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
+              {isExpanded && canPreview && output && (
+                <PreviewPanel file={item.file} output={output} />
+              )}
             </li>
           );
         })}
       </ul>
 
       <Dropzone onFiles={addFiles} compact />
+    </div>
+  );
+};
+
+interface PreviewPanelProps {
+  file: File;
+  output: { blob: Blob; format: EncodableFormat };
+}
+
+const PreviewPanel = ({ file, output }: PreviewPanelProps) => {
+  const originalUrl = useMemo(() => URL.createObjectURL(file), [file]);
+  const outputUrl = useMemo(
+    () => URL.createObjectURL(output.blob),
+    [output.blob],
+  );
+  useEffect(() => () => URL.revokeObjectURL(originalUrl), [originalUrl]);
+  useEffect(() => () => URL.revokeObjectURL(outputUrl), [outputUrl]);
+  return (
+    <div class="queue-item__preview">
+      <figure>
+        <img src={originalUrl} alt="Original" />
+        <figcaption>Original · {formatBytes(file.size)}</figcaption>
+      </figure>
+      <figure>
+        <img src={outputUrl} alt="Compressed" />
+        <figcaption>
+          Compressed · {formatBytes(output.blob.size)} ·{" "}
+          {output.format.toUpperCase()}
+        </figcaption>
+      </figure>
     </div>
   );
 };

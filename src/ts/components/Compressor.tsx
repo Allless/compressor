@@ -9,6 +9,8 @@ import {
   type TargetFormat,
 } from "../lib/compress";
 import { formatBytes } from "../lib/format";
+import { useDebounced } from "../hooks/use-debounced";
+import { ModeTabs, type Mode } from "./ModeTabs";
 
 interface CompressorProps {
   file: File;
@@ -24,6 +26,21 @@ const ALL_TARGETS: { value: TargetFormat; label: string }[] = [
   { value: "avif", label: "AVIF" },
   { value: "gif", label: "GIF" },
 ];
+
+const WIDTH_PRESETS: ReadonlyArray<{ value: number | null; label: string }> = [
+  { value: null, label: "Original" },
+  { value: 2560, label: "2560w" },
+  { value: 1920, label: "1920w" },
+  { value: 1280, label: "1280w" },
+  { value: 800, label: "800w" },
+  { value: 480, label: "480w" },
+];
+
+const MIN_CUSTOM_WIDTH = 16;
+const MAX_CUSTOM_WIDTH = 8192;
+
+const clampWidth = (w: number): number =>
+  Math.max(MIN_CUSTOM_WIDTH, Math.min(MAX_CUSTOM_WIDTH, Math.round(w || 0)));
 
 const downloadName = (original: File, format: EncodableFormat): string => {
   const base = original.name.replace(/\.[^.]+$/, "");
@@ -44,6 +61,28 @@ export const Compressor = ({
   } | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  const [widthMode, setWidthMode] = useState<Mode>("preset");
+  const [presetWidth, setPresetWidth] = useState<number | null>(null);
+  const [customWidth, setCustomWidth] = useState<number>(1280);
+  const [sourceDims, setSourceDims] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+
+  // Debounce only what flows into compress(). The live custom-width value
+  // still drives the input and any UI hints so the field stays responsive.
+  const settledCustomWidth = useDebounced(customWidth, 250);
+  const maxWidth =
+    widthMode === "preset" ? presetWidth : clampWidth(settledCustomWidth);
+
+  const switchWidthMode = (next: Mode) => {
+    if (next === widthMode) return;
+    if (next === "custom" && presetWidth !== null) {
+      setCustomWidth(presetWidth);
+    }
+    setWidthMode(next);
+  };
 
   const inputFormat = useMemo<DecodableFormat | null>(() => {
     try {
@@ -87,6 +126,27 @@ export const Compressor = ({
     };
   }, [outputUrl]);
 
+  // Source-dimension probe. Browsers can't natively decode HEIC, so for those
+  // files this will silently fail and presets stay enabled — resize is still
+  // safe because compress() never upscales.
+  useEffect(() => {
+    let cancelled = false;
+    setSourceDims(null);
+    const img = new Image();
+    img.onload = () => {
+      if (!cancelled) {
+        setSourceDims({ width: img.naturalWidth, height: img.naturalHeight });
+      }
+    };
+    img.onerror = () => {
+      if (!cancelled) setSourceDims(null);
+    };
+    img.src = originalUrl;
+    return () => {
+      cancelled = true;
+    };
+  }, [originalUrl]);
+
   useEffect(() => {
     if (!effectiveTarget) {
       setErr("Unsupported file type.");
@@ -95,7 +155,7 @@ export const Compressor = ({
     let cancelled = false;
     setBusy(true);
     setErr(null);
-    compress(file, effectiveTarget, quality)
+    compress(file, effectiveTarget, quality, maxWidth)
       .then((result) => {
         if (!cancelled) setOutput(result);
       })
@@ -108,7 +168,7 @@ export const Compressor = ({
     return () => {
       cancelled = true;
     };
-  }, [file, effectiveTarget, quality]);
+  }, [file, effectiveTarget, quality, maxWidth]);
 
   const originalSize = file.size;
   const newSize = output?.blob.size ?? 0;
@@ -136,8 +196,13 @@ export const Compressor = ({
         </figure>
 
         <figure class="compressor__pane">
-          {outputUrl && !busy ? (
-            <img src={outputUrl} alt="Compressed" class="compressor__img" />
+          {outputUrl ? (
+            <div class="compressor__media">
+              <img src={outputUrl} alt="Compressed" class="compressor__img" />
+              {busy && (
+                <div class="compressor__overlay">Compressing…</div>
+              )}
+            </div>
           ) : (
             <div class="compressor__placeholder">
               {busy ? (
@@ -169,7 +234,74 @@ export const Compressor = ({
         </figure>
       </div>
 
+      {output && !busy && savings < -3 && (
+        <div class="compressor__warning">
+          <span class="compressor__warning-icon" aria-hidden="true">⚠</span>
+          Output is {Math.round(-savings)}% larger than the original. Try a
+          different target format, a higher quality, or download the original
+          instead.
+        </div>
+      )}
+
       <div class="controls">
+        <div class="control">
+          <div class="control__head">
+            <span class="control__label">Width</span>
+            <ModeTabs
+              value={widthMode}
+              onChange={switchWidthMode}
+              disabled={busy}
+            />
+          </div>
+          {widthMode === "preset" ? (
+            <select
+              class="control__select"
+              value={presetWidth === null ? "original" : String(presetWidth)}
+              onChange={(e) => {
+                const v = e.currentTarget.value;
+                setPresetWidth(v === "original" ? null : Number(v));
+              }}
+              disabled={busy}
+            >
+              {WIDTH_PRESETS.map((p) => (
+                <option
+                  key={p.label}
+                  value={p.value === null ? "original" : String(p.value)}
+                  disabled={
+                    p.value !== null &&
+                    sourceDims !== null &&
+                    sourceDims.width <= p.value
+                  }
+                >
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="number"
+              class="control__select"
+              value={customWidth}
+              min={MIN_CUSTOM_WIDTH}
+              max={MAX_CUSTOM_WIDTH}
+              step={1}
+              onInput={(e) => {
+                const n = Number(e.currentTarget.value);
+                if (Number.isFinite(n)) setCustomWidth(n);
+              }}
+              disabled={busy}
+              aria-label="Max output width in pixels"
+            />
+          )}
+          {sourceDims &&
+            widthMode === "custom" &&
+            clampWidth(customWidth) >= sourceDims.width && (
+              <span class="control__hint">
+                Source is {sourceDims.width}px wide — won't upscale.
+              </span>
+            )}
+        </div>
+
         <label class="control">
           <span class="control__label">Format</span>
           <select
@@ -198,6 +330,10 @@ export const Compressor = ({
               onInput={(e) => setQuality(Number(e.currentTarget.value))}
               class="control__range"
             />
+            <span class="control__hint">
+              Pushing above the source's quality grows the file with no visible
+              gain.
+            </span>
           </label>
         )}
 

@@ -61,7 +61,14 @@ export const encodeVideo = ({
         bitrate: videoBps,
         ...(outHeight === undefined ? {} : { height: outHeight }),
       },
-      audio: { codec: "aac", bitrate: audioBps },
+      // Passthrough: empty audio options → mediabunny copies the source audio
+      // track when its codec is compatible with the output container (AAC in
+      // MP4), and re-encodes only when it has to. Re-encode: pin codec +
+      // bitrate and force a transcode so the chosen bitrate is honored even
+      // when the source could have been copied.
+      audio: settings.audioPassthrough
+        ? {}
+        : { codec: "aac", bitrate: audioBps, forceTranscode: true },
     });
     if (cancelled) {
       await conv.cancel();

@@ -8,8 +8,13 @@ export interface VideoSettings {
   quality: VideoQualityMode;
   /** Cap output height; aspect preserved. `null` / `undefined` keeps original. */
   maxHeight?: number | null;
-  /** Audio bitrate in bps. Defaults to 128_000. */
+  /** Audio bitrate in bps. Defaults to 128_000. Ignored when `audioPassthrough` is true. */
   audioBps?: number;
+  /**
+   * When true, copy the source audio track verbatim (no decode/encode round-trip) when the
+   * source codec is compatible with the output container. Falls back to re-encode otherwise.
+   */
+  audioPassthrough?: boolean;
 }
 
 export interface SourceDimensions {
