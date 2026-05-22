@@ -57,28 +57,26 @@ export const VideoCompressor = ({ file, onReset }: Props) => {
 
   const [audioPassthrough, setAudioPassthrough] = useState<boolean>(false);
 
-  // Debounce only the values that flow into `settings` (and therefore re-trigger
-  // the encode). Display elements keep reading the live values so the slider
-  // and pre-encode readout stay responsive while the user drags.
-  const settledHeight = useDebounced(customHeight, 250);
-  const settledKbps = useDebounced(customKbps, 250);
-
   const maxHeight =
     heightMode === "preset" ? presetHeight : clampHeight(customHeight);
-  const settledMaxHeight =
-    heightMode === "preset" ? presetHeight : clampHeight(settledHeight);
 
-  const settings: VideoSettings = useMemo(
+  // Single debounce on the whole settings object. Display elements keep reading
+  // the live values above so sliders and the pre-encode readout stay
+  // responsive, while the encode only restarts after 250ms of stillness — this
+  // also smooths out rapid preset/checkbox changes that would otherwise queue
+  // cancel/restart cycles.
+  const liveSettings: VideoSettings = useMemo(
     () => ({
-      maxHeight: settledMaxHeight,
+      maxHeight,
       quality:
         qualityMode === "preset"
           ? { kind: "preset", preset }
-          : { kind: "bitrate", videoBps: clampVideoBps(settledKbps * 1000) },
+          : { kind: "bitrate", videoBps: clampVideoBps(customKbps * 1000) },
       audioPassthrough,
     }),
-    [settledMaxHeight, qualityMode, preset, settledKbps, audioPassthrough],
+    [maxHeight, qualityMode, preset, customKbps, audioPassthrough],
   );
+  const settings = useDebounced(liveSettings, 250);
 
   const switchHeightMode = (next: Mode) => {
     if (next === heightMode) return;
@@ -264,11 +262,7 @@ export const VideoCompressor = ({ file, onReset }: Props) => {
         <div class="control">
           <div class="control__head">
             <span class="control__label">Resolution</span>
-            <ModeTabs
-              value={heightMode}
-              onChange={switchHeightMode}
-              disabled={enc.busy}
-            />
+            <ModeTabs value={heightMode} onChange={switchHeightMode} />
           </div>
           {heightMode === "preset" ? (
             <select
@@ -278,7 +272,6 @@ export const VideoCompressor = ({ file, onReset }: Props) => {
                 const v = e.currentTarget.value;
                 setPresetHeight(v === "original" ? null : Number(v));
               }}
-              disabled={enc.busy}
             >
               {HEIGHT_PRESETS.map((p) => (
                 <option
@@ -306,7 +299,6 @@ export const VideoCompressor = ({ file, onReset }: Props) => {
                 const n = Number(e.currentTarget.value);
                 if (Number.isFinite(n)) setCustomHeight(n);
               }}
-              disabled={enc.busy}
               aria-label="Max output height in pixels"
             />
           )}
@@ -322,11 +314,7 @@ export const VideoCompressor = ({ file, onReset }: Props) => {
         <div class="control">
           <div class="control__head">
             <span class="control__label">Quality</span>
-            <ModeTabs
-              value={qualityMode}
-              onChange={switchQualityMode}
-              disabled={enc.busy}
-            />
+            <ModeTabs value={qualityMode} onChange={switchQualityMode} />
           </div>
           {qualityMode === "preset" ? (
             <select
@@ -335,7 +323,6 @@ export const VideoCompressor = ({ file, onReset }: Props) => {
               onChange={(e) =>
                 setPreset(e.currentTarget.value as VideoQualityPreset)
               }
-              disabled={enc.busy}
             >
               {QUALITY_PRESETS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -353,7 +340,6 @@ export const VideoCompressor = ({ file, onReset }: Props) => {
                 step={100}
                 value={customKbps}
                 onInput={(e) => setCustomKbps(Number(e.currentTarget.value))}
-                disabled={enc.busy}
                 aria-label="Video bitrate in kilobits per second"
               />
               <span class="control__value">{customKbps} kbps</span>
@@ -369,7 +355,6 @@ export const VideoCompressor = ({ file, onReset }: Props) => {
               onChange={(e) =>
                 setAudioPassthrough(e.currentTarget.checked)
               }
-              disabled={enc.busy}
             />
             <span class="control__label">Keep source audio</span>
           </label>
