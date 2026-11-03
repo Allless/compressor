@@ -1,10 +1,10 @@
 # Compressor
 
-The image-compression tool in the [Lessly](https://allless.github.io/) family of small in-browser utilities.
+The image-compression tool in the [Allless](https://allless.github.io/) family of small in-browser utilities.
 
 100% client-side. Compress JPEG, PNG, WebP, AVIF, HEIC, and GIF in your browser — no upload, no signup, no server.
 
-**Live**: https://allless.github.io/compressor/ (moving to `compressor.lessly.me` once the domain is set up)
+**Live**: https://allless.github.io/compressor/
 
 ## Stack
 
@@ -44,4 +44,4 @@ See [progress.md](./progress.md) for the working tracker. Highlights still pendi
 - JPEG XL (`@jsquash/jxl`)
 - PNG re-optimization via `@jsquash/oxipng`
 - Inline preview in batch rows
-- Eventually: a sibling video compressor at `video.lessly.me` (mediabunny + WebCodecs)
+- Eventually: a sibling video compressor (mediabunny + WebCodecs)

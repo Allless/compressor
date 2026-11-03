@@ -385,7 +385,7 @@ export const VideoCompressor = ({ file, onReset }: Props) => {
 
 const Header = ({ onReset }: { onReset: () => void }) => (
   <header class="compressor__header">
-    <h1>Lessly · Compressor</h1>
+    <h1>Allless · Compressor</h1>
     <button class="btn btn--small" onClick={onReset}>
       ← New file
     </button>

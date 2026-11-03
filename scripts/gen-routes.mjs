@@ -11,11 +11,10 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const srcDir = resolve(__dirname, "../src");
 
-// Single value to change when migrating to a custom domain
-// (e.g. "https://compressor.lessly.me").
+// Single value to change when migrating to a custom domain.
 const BASE_URL = "https://allless.github.io/compressor";
 
-const SITE_BRAND = "Lessly";
+const SITE_BRAND = "Allless";
 const TOOL_NAME = "Compressor";
 
 // One landing page per supported input format.

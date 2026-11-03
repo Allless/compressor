@@ -121,7 +121,7 @@ const App = () => {
           <h1>
             {ROUTE
               ? `Free ${ROUTE.label} ${ROUTE.verb}`
-              : "Lessly · Compressor"}
+              : "Allless · Compressor"}
           </h1>
           <p class="landing__tagline">
             {ROUTE
